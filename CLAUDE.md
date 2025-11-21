@@ -25,11 +25,12 @@ streamlit run app.py
 ```
 
 ### Configuration
-API keys are configured through the web UI on the home page. No `.env` file is required. Users provide:
-- GitHub Personal Access Token
-- OpenAI API Key
+Configuration is managed through a `.env` file:
+- **DATABASE_URL** (required): PostgreSQL connection string
+- **GITHUB_TOKEN** (optional): GitHub Personal Access Token - can be provided via web UI
+- **OPENAI_API_KEY** (optional): OpenAI API key - can be provided via web UI
 
-The keys are stored in `st.session_state` and persist during the session.
+API keys can be entered through the web UI on the home page and are stored in `st.session_state` during the session. A `.env.example` file is provided as a template.
 
 ## Architecture
 
@@ -120,9 +121,10 @@ Main Streamlit application with URL routing and three main pages:
 - Progress callbacks update Streamlit UI in real-time
 
 **`config.py`**
-- Loads environment variables from `.env` (used as fallback only)
-- Sets `DATABASE_URL` to hardcoded PostgreSQL connection string (format: `postgresql://user:password@host:port/database_name`)
-- Note: API keys are now primarily provided via UI, not `.env`
+- Loads environment variables from `.env` file using `python-dotenv`
+- Reads `DATABASE_URL` from environment (required)
+- Reads `GITHUB_TOKEN` and `OPENAI_API_KEY` from environment (optional - can be provided via UI)
+- Validates configuration with `validate_config()` function
 
 ### Database Schema
 
@@ -230,10 +232,10 @@ The project doesn't currently have unit tests. When testing:
 ## UI/UX Patterns
 
 ### API Key Management
-- Keys are entered once on home page
-- Stored in `st.session_state` for the session duration
+- Keys can be set in `.env` file or entered through the web UI
+- When entered via UI, keys are stored in `st.session_state` for the session duration
 - Validated before allowing analysis
-- No `.env` file required (though used as fallback if available)
+- `.env` file is required for `DATABASE_URL` but optional for API keys
 
 ### Repository List
 - Home page shows all previously analyzed repositories

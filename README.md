@@ -28,7 +28,28 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 2. Run
+### 2. Configure Environment
+
+Create a `.env` file in the project root (or copy from `.env.example`):
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and add your configuration:
+
+```env
+# Database Configuration (Required)
+DATABASE_URL=postgresql://username:password@host:port/database_name
+
+# API Keys (Optional - can also be entered through the web UI)
+GITHUB_TOKEN=your_github_token
+OPENAI_API_KEY=your_openai_api_key
+```
+
+**Important**: The `DATABASE_URL` must point to a valid PostgreSQL database. The API keys can be provided either in the `.env` file or through the web interface.
+
+### 3. Run
 
 ```bash
 streamlit run app.py
@@ -36,7 +57,7 @@ streamlit run app.py
 
 The application will open in your browser at `http://localhost:8501`
 
-### 3. Configure & Analyze
+### 4. Analyze Repositories
 
 1. **Enter API Keys** on the home page:
 
@@ -84,7 +105,7 @@ The app uses URL routing for easy navigation:
 
 ## Data Storage
 
-All analysis results are stored in a PostgreSQL database. The connection URL is configured in `config.py`. Previously analyzed repositories appear on the home page with options to:
+All analysis results are stored in a PostgreSQL database. The connection URL is configured via the `DATABASE_URL` environment variable in `.env`. Previously analyzed repositories appear on the home page with options to:
 
 - **View Dashboard**: See existing analysis
 - **Re-analyze**: Fetch fresh data and update metrics
@@ -92,9 +113,9 @@ All analysis results are stored in a PostgreSQL database. The connection URL is 
 ## Requirements
 
 - Python 3.9+
-- PostgreSQL database (configured in `config.py`)
-- GitHub Personal Access Token
-- OpenAI API Key
+- PostgreSQL database (configured via `.env` file)
+- GitHub Personal Access Token (can be set in `.env` or via web UI)
+- OpenAI API Key (can be set in `.env` or via web UI)
 - Internet connection for API calls
 
 ## Cost Considerations

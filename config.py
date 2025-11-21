@@ -13,9 +13,7 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Database Configuration (PostgreSQL)
-# Replace with your actual PostgreSQL connection string:
-# postgresql://username:password@host:port/database_name
-DATABASE_URL = 'postgresql://neondb_owner:npg_1QMSgCHFJp2o@ep-winter-bush-ab6htefv-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Validation
 
@@ -29,6 +27,9 @@ def validate_config():
 
     if not OPENAI_API_KEY:
         errors.append("OPENAI_API_KEY not found in environment variables")
+
+    if not DATABASE_URL:
+        errors.append("DATABASE_URL not found in environment variables")
 
     return errors
 
