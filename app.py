@@ -48,6 +48,9 @@ def navigate_to_home():
 
 def navigate_to_repo(owner: str, repo: str):
     """Navigate to a repository page by setting query parameters."""
+    # Clear all query parameters first to remove any analyze page params
+    st.query_params.clear()
+    # Set the repository parameters
     st.query_params["owner"] = owner
     st.query_params["repo"] = repo
 
