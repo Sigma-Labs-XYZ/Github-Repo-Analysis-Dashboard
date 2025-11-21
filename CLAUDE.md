@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-GitHub Project Tracker is a Python application that analyzes GitHub repositories to measure contributor quality and productivity. It fetches data via the GitHub API, uses OpenAI for qualitative analysis of commits/PRs/issues, stores results in SQLite, and displays interactive visualizations through a Streamlit dashboard.
+GitHub Project Tracker is a Python application that analyzes GitHub repositories to measure contributor quality and productivity. It fetches data via the GitHub API, uses OpenAI for qualitative analysis of commits/PRs/issues, stores results in PostgreSQL, and displays interactive visualizations through a Streamlit dashboard.
 
 ## Development Commands
 
@@ -47,7 +47,7 @@ The application uses Streamlit query parameters for URL-based routing:
 2. **Navigate to Analyze**: User clicks "Analyze Repository" → redirects to `/?page=analyse&url=...`
 3. **Fetch**: `GitHubClient` fetches commits, PRs, and issues in parallel using ThreadPoolExecutor
 4. **Analyze**: Each analyzer module processes data and calls OpenAI for quality scoring
-5. **Store**: `DatabaseManager` saves structured data to SQLite using SQLAlchemy ORM
+5. **Store**: `DatabaseManager` saves structured data to PostgreSQL using SQLAlchemy ORM
 6. **Redirect**: Automatically redirects to repository dashboard at `/?owner=X&repo=Y`
 7. **Display**: Streamlit dashboard reads from database and renders visualizations with Plotly
 
@@ -121,17 +121,19 @@ Main Streamlit application with URL routing and three main pages:
 
 **`config.py`**
 - Loads environment variables from `.env` (used as fallback only)
-- Sets `DATABASE_PATH` to `data/github_tracker.db`
+- Sets `DATABASE_URL` to hardcoded PostgreSQL connection string (format: `postgresql://user:password@host:port/database_name`)
 - Note: API keys are now primarily provided via UI, not `.env`
 
 ### Database Schema
 
-The SQLite database uses SQLAlchemy ORM with these key relationships:
+The PostgreSQL database uses SQLAlchemy ORM with these key relationships:
 - `Repository` (1) → (many) `Commit`, `PullRequest`, `Issue`
 - `Contributor` (1) → (many) `Commit`, `PullRequest`, `Issue`
 - Each data model has a companion metrics table (e.g., `Commit` → `CommitMetric`)
 - `RepositoryContent` stores language breakdown and file statistics (JSON strings)
 - `PRComment` and `IssueComment` store review/discussion comments
+- Composite indexes optimize queries on `(repo_id, created_at)`, `(repo_id, contributor_id)`, and `(repo_id, state)`
+- Connection pooling configured with `pool_size=10` and `max_overflow=20` for PostgreSQL performance
 
 ### Parallelization Strategy
 
@@ -167,7 +169,7 @@ Edit the prompt in `llm/openai_client.py` for the relevant analysis function:
 
 ### Changing the Database
 1. Modify models in `database/models.py`
-2. Delete `data/github_tracker.db` to recreate with new schema
+2. Drop and recreate PostgreSQL database tables (or use Alembic for migrations)
 3. Re-analyze repositories to populate new structure
 
 ### Adding New Routes
@@ -220,7 +222,7 @@ The project doesn't currently have unit tests. When testing:
 - Use small public repositories for faster iteration
 - Check GitHub API rate limits (5,000 requests/hour for authenticated users)
 - OpenAI costs scale with repository size (~$0.01 per 100 items analyzed)
-- Delete `data/github_tracker.db` between tests for clean state
+- Clear PostgreSQL database tables between tests for clean state (e.g., `TRUNCATE TABLE repositories CASCADE`)
 - Test all three routes: home (`/`), analyze (`/?page=analyse&url=...`), repo (`/?owner=X&repo=Y`)
 - Verify URL parameters persist across page refreshes
 - Test "Back to Home" navigation from analyze and repo pages

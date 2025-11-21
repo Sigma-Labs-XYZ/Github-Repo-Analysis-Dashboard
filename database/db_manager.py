@@ -26,7 +26,13 @@ class DatabaseManager:
     def __init__(self, database_url: str = None):
         """Initialize the database manager."""
         self.database_url = database_url or config.DATABASE_URL
-        self.engine = create_engine(self.database_url, pool_pre_ping=True)
+        # PostgreSQL-optimized connection pooling
+        self.engine = create_engine(
+            self.database_url,
+            pool_pre_ping=True,  # Verify connections before using them
+            pool_size=10,         # Maintain 10 connections in the pool
+            max_overflow=20       # Allow up to 20 additional connections when needed
+        )
         session_factory = sessionmaker(bind=self.engine)
         self.SessionLocal = scoped_session(session_factory)
         self._initialize_database()

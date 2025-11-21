@@ -11,6 +11,7 @@ from sqlalchemy import (
     ForeignKey,
     Boolean,
     create_engine,
+    Index,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -82,6 +83,12 @@ class Commit(Base):
     contributor = relationship("Contributor", back_populates="commits")
     metrics = relationship("CommitMetric", back_populates="commit", cascade="all, delete-orphan", uselist=False)
 
+    # Composite indexes for PostgreSQL optimization
+    __table_args__ = (
+        Index('idx_commit_repo_time', 'repo_id', 'committed_at'),
+        Index('idx_commit_repo_contributor', 'repo_id', 'contributor_id'),
+    )
+
     def __repr__(self):
         return f"<Commit {self.sha[:7]}>"
 
@@ -131,6 +138,13 @@ class PullRequest(Base):
     merged_by = relationship("Contributor", foreign_keys=[merged_by_id])
     metrics = relationship("PRMetric", back_populates="pull_request", cascade="all, delete-orphan", uselist=False)
 
+    # Composite indexes for PostgreSQL optimization
+    __table_args__ = (
+        Index('idx_pr_repo_time', 'repo_id', 'created_at'),
+        Index('idx_pr_repo_contributor', 'repo_id', 'contributor_id'),
+        Index('idx_pr_repo_state', 'repo_id', 'state'),
+    )
+
     def __repr__(self):
         return f"<PullRequest #{self.pr_number}>"
 
@@ -177,6 +191,13 @@ class Issue(Base):
     repository = relationship("Repository", back_populates="issues")
     contributor = relationship("Contributor", back_populates="issues")
     metrics = relationship("IssueMetric", back_populates="issue", cascade="all, delete-orphan", uselist=False)
+
+    # Composite indexes for PostgreSQL optimization
+    __table_args__ = (
+        Index('idx_issue_repo_time', 'repo_id', 'created_at'),
+        Index('idx_issue_repo_contributor', 'repo_id', 'contributor_id'),
+        Index('idx_issue_repo_state', 'repo_id', 'state'),
+    )
 
     def __repr__(self):
         return f"<Issue #{self.issue_number}>"

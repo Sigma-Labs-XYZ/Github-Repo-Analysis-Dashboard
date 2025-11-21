@@ -9,7 +9,7 @@ A web application that analyzes GitHub repositories to measure contributor quali
 - **Contributor Metrics**: Tracks individual contributor statistics including lines changed, PRs created, and quality scores
 - **Code Quality Analysis**: Performs static analysis on Python code to measure complexity and maintainability
 - **Interactive Dashboard**: Visualizes all metrics with charts, graphs, and detailed breakdowns
-- **Persistent Storage**: Saves all analysis to a local SQLite database for quick access
+- **Persistent Storage**: Saves all analysis to a PostgreSQL database for quick access
 
 ## Quick Start
 
@@ -84,7 +84,7 @@ The app uses URL routing for easy navigation:
 
 ## Data Storage
 
-All analysis results are stored in `data/github_tracker.db` (SQLite database). Previously analyzed repositories appear on the home page with options to:
+All analysis results are stored in a PostgreSQL database. The connection URL is configured in `config.py`. Previously analyzed repositories appear on the home page with options to:
 
 - **View Dashboard**: See existing analysis
 - **Re-analyze**: Fetch fresh data and update metrics
@@ -92,6 +92,7 @@ All analysis results are stored in `data/github_tracker.db` (SQLite database). P
 ## Requirements
 
 - Python 3.9+
+- PostgreSQL database (configured in `config.py`)
 - GitHub Personal Access Token
 - OpenAI API Key
 - Internet connection for API calls
@@ -100,7 +101,7 @@ All analysis results are stored in `data/github_tracker.db` (SQLite database). P
 
 - **GitHub API**: Free (5,000 requests/hour for authenticated users)
 - **OpenAI API**: ~$0.01 per 100 items analyzed (using gpt-5-nano model)
-- **Storage**: Minimal (SQLite database stored locally)
+- **Storage**: Minimal (PostgreSQL database)
 
 ## Troubleshooting
 
@@ -121,6 +122,7 @@ API keys are required and entered through the web interface. They persist for th
 - **Streamlit**: Web application framework
 - **PyGithub**: GitHub API wrapper
 - **OpenAI**: AI-powered quality analysis
+- **PostgreSQL**: Production-grade database
 - **SQLAlchemy**: Database ORM
 - **Plotly**: Interactive visualizations
 - **Radon**: Python code quality analysis
