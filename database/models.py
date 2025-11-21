@@ -4,6 +4,7 @@ from datetime import datetime
 from sqlalchemy import (
     Column,
     Integer,
+    BigInteger,
     String,
     Text,
     Float,
@@ -25,7 +26,7 @@ class Repository(Base):
     __tablename__ = "repositories"
 
     id = Column(Integer, primary_key=True)
-    repo_id = Column(Integer, unique=True, nullable=False, index=True)
+    repo_id = Column(BigInteger, unique=True, nullable=False, index=True)  # GitHub repository ID
     name = Column(String(255), nullable=False)
     owner = Column(String(255), nullable=False)
     url = Column(String(500), nullable=False)
@@ -229,7 +230,7 @@ class PRComment(Base):
     id = Column(Integer, primary_key=True)
     pr_id = Column(Integer, ForeignKey("pull_requests.id"), nullable=False, index=True)
     contributor_id = Column(Integer, ForeignKey("contributors.id"), nullable=False, index=True)
-    comment_id = Column(Integer, nullable=False, index=True)  # GitHub comment ID
+    comment_id = Column(BigInteger, nullable=False, index=True)  # GitHub comment ID
     body = Column(Text)
     created_at = Column(DateTime, nullable=False)
 
@@ -249,7 +250,7 @@ class IssueComment(Base):
     id = Column(Integer, primary_key=True)
     issue_id = Column(Integer, ForeignKey("issues.id"), nullable=False, index=True)
     contributor_id = Column(Integer, ForeignKey("contributors.id"), nullable=False, index=True)
-    comment_id = Column(Integer, nullable=False, index=True)  # GitHub comment ID
+    comment_id = Column(BigInteger, nullable=False, index=True)  # GitHub comment ID
     body = Column(Text)
     created_at = Column(DateTime, nullable=False)
 
