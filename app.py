@@ -400,6 +400,9 @@ def analyze_repository(repo_url: str, github_token: str, openai_key: str):
                         if not pr_rec:
                             continue
 
+                        # Load the PR ID before using it in the loop
+                        pr_id = pr_rec.id
+
                         for comment in comments:
                             contributor = db_manager.get_or_create_contributor({
                                 "username": comment["username"],
@@ -408,7 +411,7 @@ def analyze_repository(repo_url: str, github_token: str, openai_key: str):
                             })
 
                             db_manager.save_pr_comment({
-                                "pr_id": pr_rec.id,
+                                "pr_id": pr_id,
                                 "contributor_id": contributor.id,
                                 "comment_id": comment["comment_id"],
                                 "body": comment["body"],
@@ -448,6 +451,9 @@ def analyze_repository(repo_url: str, github_token: str, openai_key: str):
                         ).first()
 
                         if issue_record:
+                            # Load the issue ID before using it in the loop
+                            issue_id = issue_record.id
+
                             for comment in comments:
                                 contributor = db_manager.get_or_create_contributor({
                                     "username": comment["username"],
@@ -456,7 +462,7 @@ def analyze_repository(repo_url: str, github_token: str, openai_key: str):
                                 })
 
                                 db_manager.save_issue_comment({
-                                    "issue_id": issue_record.id,
+                                    "issue_id": issue_id,
                                     "contributor_id": contributor.id,
                                     "comment_id": comment["comment_id"],
                                     "body": comment["body"],
