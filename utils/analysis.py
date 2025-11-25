@@ -39,12 +39,12 @@ def _create_progress_callbacks():
 
 def _fetch_repository_data(github_client: GitHubClient, owner: str, repo_name: str):
     """Fetch commits, PRs, and issues in parallel.
-    
+
     Returns:
         tuple: (commits, prs, issues)
     """
     commit_state, pr_state, issue_state, cb_commit, cb_pr, cb_issue = _create_progress_callbacks()
-    
+
     st.subheader("📊 Analysis Progress")
 
     with st.status("🚀 Fetching commits, pull requests, and issues in parallel...", expanded=True) as status:
@@ -71,7 +71,7 @@ def _fetch_repository_data(github_client: GitHubClient, owner: str, repo_name: s
 
         commits, prs, issues = [], [], []
 
-        with ThreadPoolExecutor(max_workers=20) as executor:
+        with ThreadPoolExecutor(max_workers=30) as executor:
             future_commits = executor.submit(
                 github_client.get_commits, owner, repo_name, None, cb_commit)
             future_prs = executor.submit(
@@ -88,20 +88,23 @@ def _fetch_repository_data(github_client: GitHubClient, owner: str, repo_name: s
             completed = 0
             while completed < 3:
                 if commit_state["total"] > 0:
-                    progress = min(commit_state["current"] / commit_state["total"], 1.0)
+                    progress = min(
+                        commit_state["current"] / commit_state["total"], 1.0)
                     commit_progress_bar.progress(progress)
                     commit_status.text(
                         f"{commit_state['current']}/{commit_state['total']} ({progress*100:.0f}%)")
 
                 if pr_state["total"] > 0:
-                    progress = min(pr_state["current"] / pr_state["total"], 1.0)
+                    progress = min(pr_state["current"] /
+                                   pr_state["total"], 1.0)
                     pr_progress_bar.progress(progress)
                     pr_status.text(
                         f"{pr_state['current']}/{pr_state['total']} ({progress*100:.0f}%)")
 
                 if issue_state["total"] > 0:
                     issue_progress_bar.progress(0.5)
-                    issue_status.text(f"Processing... {issue_state['current']} issues found")
+                    issue_status.text(
+                        f"Processing... {issue_state['current']} issues found")
 
                 for future in list(futures.keys()):
                     if future.done() and future in futures:
@@ -138,7 +141,7 @@ def _fetch_repository_data(github_client: GitHubClient, owner: str, repo_name: s
     return commits, prs, issues
 
 
-def _analyze_data(db_manager: DatabaseManager, repo_record, 
+def _analyze_data(db_manager: DatabaseManager, repo_record,
                   commits: list, prs: list, issues: list, llm_client: OpenAIClient):
     """Analyze fetched commits, PRs, and issues."""
     if commits:
@@ -149,11 +152,14 @@ def _analyze_data(db_manager: DatabaseManager, repo_record,
             def commit_progress(current, total, message):
                 progress = current / total
                 progress_bar.progress(progress)
-                status_text.text(f"Progress: {current}/{total} ({progress*100:.1f}%)")
+                status_text.text(
+                    f"Progress: {current}/{total} ({progress*100:.1f}%)")
 
             commit_analyzer = CommitAnalyzer(db_manager, llm_client)
-            commit_analyzer.analyze_commits(repo_record.id, commits, commit_progress)
-            status.update(label=f"✅ Analyzed {len(commits)} commits", state="complete")
+            commit_analyzer.analyze_commits(
+                repo_record.id, commits, commit_progress)
+            status.update(
+                label=f"✅ Analyzed {len(commits)} commits", state="complete")
 
     if prs:
         with st.status(f"🔀 Analyzing {len(prs)} pull requests...", expanded=True) as status:
@@ -163,11 +169,13 @@ def _analyze_data(db_manager: DatabaseManager, repo_record,
             def pr_progress(current, total, message):
                 progress = current / total
                 progress_bar.progress(progress)
-                status_text.text(f"Progress: {current}/{total} ({progress*100:.1f}%)")
+                status_text.text(
+                    f"Progress: {current}/{total} ({progress*100:.1f}%)")
 
             pr_analyzer = PRAnalyzer(db_manager, llm_client)
             pr_analyzer.analyze_pull_requests(repo_record.id, prs, pr_progress)
-            status.update(label=f"✅ Analyzed {len(prs)} pull requests", state="complete")
+            status.update(
+                label=f"✅ Analyzed {len(prs)} pull requests", state="complete")
 
     if issues:
         with st.status(f"🐛 Analyzing {len(issues)} issues...", expanded=True) as status:
@@ -177,11 +185,14 @@ def _analyze_data(db_manager: DatabaseManager, repo_record,
             def issue_progress(current, total, message):
                 progress = current / total
                 progress_bar.progress(progress)
-                status_text.text(f"Progress: {current}/{total} ({progress*100:.1f}%)")
+                status_text.text(
+                    f"Progress: {current}/{total} ({progress*100:.1f}%)")
 
             issue_analyzer = IssueAnalyzer(db_manager, llm_client)
-            issue_analyzer.analyze_issues(repo_record.id, issues, issue_progress)
-            status.update(label=f"✅ Analyzed {len(issues)} issues", state="complete")
+            issue_analyzer.analyze_issues(
+                repo_record.id, issues, issue_progress)
+            status.update(
+                label=f"✅ Analyzed {len(issues)} issues", state="complete")
 
 
 def _fetch_and_save_comments(db_manager: DatabaseManager, github_client: GitHubClient,
@@ -197,13 +208,14 @@ def _fetch_and_save_comments(db_manager: DatabaseManager, github_client: GitHubC
         pr_comments_map = {}
         issue_comments_map = {}
 
-        with ThreadPoolExecutor(max_workers=20) as executor:
+        with ThreadPoolExecutor(max_workers=30) as executor:
             futures = {}
 
             if prs:
                 pr_numbers = [pr["pr_number"] for pr in prs]
                 with pr_container:
-                    st.write(f"📥 Fetching comments for {len(pr_numbers)} pull requests...")
+                    st.write(
+                        f"📥 Fetching comments for {len(pr_numbers)} pull requests...")
                     pr_status_text = st.empty()
                     pr_status_text.text("⏳ Fetching in progress...")
 
@@ -216,7 +228,8 @@ def _fetch_and_save_comments(db_manager: DatabaseManager, github_client: GitHubC
             if issues:
                 issue_numbers = [issue["issue_number"] for issue in issues]
                 with issue_container:
-                    st.write(f"📥 Fetching comments for {len(issue_numbers)} issues...")
+                    st.write(
+                        f"📥 Fetching comments for {len(issue_numbers)} issues...")
                     issue_status_text = st.empty()
                     issue_status_text.text("⏳ Fetching in progress...")
 
@@ -224,7 +237,8 @@ def _fetch_and_save_comments(db_manager: DatabaseManager, github_client: GitHubC
                     github_client.get_all_issue_comments,
                     owner, repo_name, issue_numbers, None
                 )
-                futures[future] = ("issue", len(issue_numbers), issue_status_text)
+                futures[future] = ("issue", len(
+                    issue_numbers), issue_status_text)
 
             for future in as_completed(futures):
                 data_type, count, status_text = futures[future]
@@ -232,10 +246,12 @@ def _fetch_and_save_comments(db_manager: DatabaseManager, github_client: GitHubC
                     result = future.result()
                     if data_type == "pr":
                         pr_comments_map = result
-                        status_text.text(f"✅ Fetched comments for {count} pull requests")
+                        status_text.text(
+                            f"✅ Fetched comments for {count} pull requests")
                     elif data_type == "issue":
                         issue_comments_map = result
-                        status_text.text(f"✅ Fetched comments for {count} issues")
+                        status_text.text(
+                            f"✅ Fetched comments for {count} issues")
                 except Exception as e:
                     status_text.text(f"❌ Error: {str(e)}")
                     st.error(f"Error fetching {data_type} comments: {e}")
@@ -251,7 +267,8 @@ def _fetch_and_save_comments(db_manager: DatabaseManager, github_client: GitHubC
             for pr_number, comments in pr_comments_map.items():
                 processed += 1
                 save_progress_bar.progress(processed / total_prs)
-                save_progress_text.text(f"Saving PR #{pr_number} comments ({processed}/{total_prs})")
+                save_progress_text.text(
+                    f"Saving PR #{pr_number} comments ({processed}/{total_prs})")
 
                 session = db_manager.get_session()
                 try:
@@ -284,7 +301,8 @@ def _fetch_and_save_comments(db_manager: DatabaseManager, github_client: GitHubC
 
             save_progress_bar.empty()
             save_progress_text.empty()
-            st.write(f"✅ Saved comments for {len(pr_comments_map)} pull requests")
+            st.write(
+                f"✅ Saved comments for {len(pr_comments_map)} pull requests")
 
         if issue_comments_map:
             st.write("💾 Saving issue comments to database...")
@@ -297,7 +315,8 @@ def _fetch_and_save_comments(db_manager: DatabaseManager, github_client: GitHubC
             for issue_number, comments in issue_comments_map.items():
                 processed += 1
                 save_progress_bar.progress(processed / total_issues)
-                save_progress_text.text(f"Saving Issue #{issue_number} comments ({processed}/{total_issues})")
+                save_progress_text.text(
+                    f"Saving Issue #{issue_number} comments ({processed}/{total_issues})")
 
                 session = db_manager.get_session()
                 try:
@@ -372,17 +391,21 @@ def _analyze_repository_content(db_manager: DatabaseManager, repo_record, repo_u
             })
 
             if analysis_results.get('python_files_count', 0) > 0:
-                st.write(f"✅ Analyzed **{analysis_results['python_files_count']}** Python files")
+                st.write(
+                    f"✅ Analyzed **{analysis_results['python_files_count']}** Python files")
                 st.write(
                     f"📊 Average complexity: **{analysis_results['avg_complexity']:.2f}** "
                     f"(Grade: {analysis_results['complexity_grade']})")
-                st.write(f"🏆 Best practices score: **{analysis_results['best_practices_score']:.1f}/10**")
+                st.write(
+                    f"🏆 Best practices score: **{analysis_results['best_practices_score']:.1f}/10**")
             else:
                 st.write("ℹ️ No Python files found for quality analysis")
 
-            status.update(label=f"✅ Repository analysis complete", state="complete")
+            status.update(label=f"✅ Repository analysis complete",
+                          state="complete")
         else:
-            st.warning(f"⚠️ Could not analyze repository: {analysis_results['error']}")
+            st.warning(
+                f"⚠️ Could not analyze repository: {analysis_results['error']}")
             status.update(label="⚠️ Repository analysis failed", state="error")
 
 
@@ -397,22 +420,29 @@ def analyze_repository(repo_url: str, github_token: str, openai_key: str):
             repo_info = github_client.get_repository(repo_url)
             owner, repo_name = github_client.parse_repo_url(repo_url)
             repo_record = db_manager.get_or_create_repository(repo_info)
-            status.update(label="✅ Repository information fetched", state="complete")
-            st.write(f"### Repository: [{repo_info['name']}]({repo_info['url']})")
+            status.update(
+                label="✅ Repository information fetched", state="complete")
+            st.write(
+                f"### Repository: [{repo_info['name']}]({repo_info['url']})")
 
-        commits, prs, issues = _fetch_repository_data(github_client, owner, repo_name)
-        
-        _analyze_data(db_manager, repo_record, commits, prs, issues, llm_client)
-        
-        _fetch_and_save_comments(db_manager, github_client, repo_record, owner, repo_name, prs, issues)
-        
+        commits, prs, issues = _fetch_repository_data(
+            github_client, owner, repo_name)
+
+        _analyze_data(db_manager, repo_record,
+                      commits, prs, issues, llm_client)
+
+        _fetch_and_save_comments(
+            db_manager, github_client, repo_record, owner, repo_name, prs, issues)
+
         _analyze_repository_content(db_manager, repo_record, repo_url)
 
         db_manager.update_repository_last_analyzed(repo_record.repo_id)
 
         st.markdown("---")
-        st.success("🎉 **Analysis Complete!** Repository has been fully analyzed and stored in the database.")
-        st.info("👉 Navigate to the **Contributor Statistics** tab to view detailed metrics and visualizations.")
+        st.success(
+            "🎉 **Analysis Complete!** Repository has been fully analyzed and stored in the database.")
+        st.info(
+            "👉 Navigate to the **Contributor Statistics** tab to view detailed metrics and visualizations.")
 
         return repo_record.id, repo_info
 
