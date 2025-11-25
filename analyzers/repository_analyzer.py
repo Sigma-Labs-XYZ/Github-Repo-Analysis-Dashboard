@@ -30,12 +30,7 @@ except ImportError:
     PYLINT_AVAILABLE = False
     print("[Repository Analyzer] Warning: Pylint not available for code analysis")
 
-try:
-    import pytest
-    PYTEST_AVAILABLE = True
-except ImportError:
-    PYTEST_AVAILABLE = False
-    print("[Repository Analyzer] Warning: Pytest not available for coverage analysis")
+# Pytest removed - requires file system access, incompatible with in-memory analysis
 
 
 class RepositoryAnalyzer:
@@ -598,123 +593,65 @@ class RepositoryAnalyzer:
                 "message": f"Analysis error: {str(e)}"
             }
 
-    def run_pytest_coverage(self, repo: Repo) -> Dict[str, Any]:
-        """Run pytest with coverage on the repository.
+    def detect_test_files(self, repo: Repo) -> Dict[str, Any]:
+        """Detect test files in repository from git objects in memory.
 
         Args:
             repo: GitPython Repo object
 
         Returns:
-            Dict with coverage metrics
+            Dict with test detection results
         """
-        if not PYTEST_AVAILABLE:
-            return {"error": "Pytest not available"}
-
         try:
-            import subprocess
-            import os
-            import shutil
+            tree = repo.head.commit.tree
+            test_files = []
+            test_directories = set()
 
-            # Check if pytest is actually installed
-            if not shutil.which('pytest'):
-                print(f"[Repository Analyzer] Pytest command not found in PATH")
-                return {
-                    "has_tests": False,
-                    "coverage_percent": 0.0,
-                    "message": "Pytest not installed"
-                }
+            # Iterate through all files
+            for item in tree.traverse():
+                if item.type != 'blob':
+                    continue
 
-            repo_dir = repo.working_dir
+                path = item.path
 
-            # Check if tests directory or pytest configuration exists
-            has_tests = (
-                os.path.exists(os.path.join(repo_dir, 'tests')) or
-                os.path.exists(os.path.join(repo_dir, 'test')) or
-                os.path.exists(os.path.join(repo_dir, 'pytest.ini')) or
-                os.path.exists(os.path.join(repo_dir, 'pyproject.toml'))
-            )
+                # Skip non-Python files and ignored paths
+                if not path.endswith('.py') or self._should_ignore_path(path):
+                    continue
 
-            if not has_tests:
-                return {
-                    "has_tests": False,
-                    "coverage_percent": 0.0,
-                    "lines_covered": 0,
-                    "lines_total": 0,
-                    "message": "No test suite found"
-                }
+                filename = path.split('/')[-1]
+                directory = '/'.join(path.split('/')[:-1]) if '/' in path else ''
 
-            # Run pytest with coverage
-            result = subprocess.run(
-                ['pytest', '--cov', '--cov-report=json', '--cov-report=term'],
-                cwd=repo_dir,
-                capture_output=True,
-                text=True,
-                timeout=180
-            )
+                # Detect test files by naming convention
+                is_test_file = (
+                    filename.startswith('test_') or
+                    filename.endswith('_test.py') or
+                    '/tests/' in path or
+                    '/test/' in path or
+                    path.startswith('tests/') or
+                    path.startswith('test/')
+                )
 
-            # Look for coverage.json file
-            coverage_file = os.path.join(repo_dir, 'coverage.json')
-            if os.path.exists(coverage_file):
-                with open(coverage_file, 'r') as f:
-                    coverage_data = json.load(f)
+                if is_test_file:
+                    test_files.append(path)
+                    if directory:
+                        test_directories.add(directory)
 
-                totals = coverage_data.get('totals', {})
-                return {
-                    "has_tests": True,
-                    "coverage_percent": round(totals.get('percent_covered', 0.0), 2),
-                    "lines_covered": totals.get('covered_lines', 0),
-                    "lines_total": totals.get('num_statements', 0),
-                    "lines_missing": totals.get('missing_lines', 0),
-                    "branches_covered": totals.get('covered_branches', 0),
-                    "branches_total": totals.get('num_branches', 0),
-                    "test_passed": result.returncode == 0
-                }
-            else:
-                # Parse from stdout if JSON file not found
-                output = result.stdout
-                coverage_percent = 0.0
+            has_tests = len(test_files) > 0
 
-                if 'TOTAL' in output:
-                    lines = output.split('\n')
-                    for line in lines:
-                        if 'TOTAL' in line:
-                            parts = line.split()
-                            for part in parts:
-                                if '%' in part:
-                                    try:
-                                        coverage_percent = float(
-                                            part.replace('%', ''))
-                                        break
-                                    except:
-                                        pass
-
-                return {
-                    "has_tests": True,
-                    "coverage_percent": coverage_percent,
-                    "test_passed": result.returncode == 0,
-                    "message": "Coverage data parsed from output"
-                }
-
-        except subprocess.TimeoutExpired:
-            print(f"[Repository Analyzer] Pytest coverage timed out")
             return {
-                "has_tests": False,
-                "coverage_percent": 0.0,
-                "message": "Coverage analysis timed out"
+                "has_tests": has_tests,
+                "test_files_count": len(test_files),
+                "test_directories": list(test_directories),
+                "test_files": test_files[:10]  # Limit to first 10 for display
             }
-        except FileNotFoundError:
-            print(f"[Repository Analyzer] Pytest command not found")
-            return {
-                "has_tests": False,
-                "coverage_percent": 0.0,
-                "message": "Pytest not installed"
-            }
+
         except Exception as e:
-            print(f"[Repository Analyzer] Pytest coverage error: {e}")
+            print(f"[Repository Analyzer] Test detection error: {e}")
             return {
                 "has_tests": False,
-                "coverage_percent": 0.0,
-                "message": f"Coverage error: {str(e)}"
+                "test_files_count": 0,
+                "test_directories": [],
+                "test_files": []
             }
 
     def get_llm_insights(self, complexity_data: Dict[str, Any], mi_data: Dict[str, Any],
@@ -914,13 +851,10 @@ Format your response as JSON:
                     print(
                         f"[Repository Analyzer] Pylint analysis error: {pylint_results['error']}")
 
-                # Run pytest coverage
+                # Detect test files
                 if progress_callback:
-                    progress_callback("Running pytest coverage...")
-                coverage_results = self.run_pytest_coverage(repo)
-                if "error" in coverage_results and "Pytest not available" not in coverage_results.get("error", ""):
-                    print(
-                        f"[Repository Analyzer] Pytest coverage error: {coverage_results['error']}")
+                    progress_callback("Detecting test files...")
+                test_detection_results = self.detect_test_files(repo)
 
                 if progress_callback:
                     progress_callback("Generating insights...")
@@ -959,13 +893,9 @@ Format your response as JSON:
                     "pylint_conventions": pylint_results.get('convention_count', 0),
                     "pylint_refactors": pylint_results.get('refactor_count', 0),
                     "pylint_total_issues": pylint_results.get('total_issues', 0),
-                    # Coverage results
-                    "has_tests": coverage_results.get('has_tests', False),
-                    "test_coverage_percent": coverage_results.get('coverage_percent', 0.0),
-                    "coverage_lines_covered": coverage_results.get('lines_covered', 0),
-                    "coverage_lines_total": coverage_results.get('lines_total', 0),
-                    "coverage_lines_missing": coverage_results.get('lines_missing', 0),
-                    "tests_passed": coverage_results.get('test_passed', None),
+                    # Test detection results
+                    "has_tests": test_detection_results.get('has_tests', False),
+                    "test_files_count": test_detection_results.get('test_files_count', 0),
                 })
             else:
                 # No Python files - add default quality metrics
@@ -988,13 +918,9 @@ Format your response as JSON:
                     "pylint_conventions": 0,
                     "pylint_refactors": 0,
                     "pylint_total_issues": 0,
-                    # Coverage defaults
+                    # Test detection defaults
                     "has_tests": False,
-                    "test_coverage_percent": 0.0,
-                    "coverage_lines_covered": 0,
-                    "coverage_lines_total": 0,
-                    "coverage_lines_missing": 0,
-                    "tests_passed": None,
+                    "test_files_count": 0,
                 })
 
             results["status"] = "completed"

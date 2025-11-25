@@ -18,16 +18,6 @@ if [[ -z "$VIRTUAL_ENV" ]]; then
     fi
 fi
 
-# Install pytest and pytest-cov
-echo "📦 Installing pytest and pytest-cov..."
-pip install pytest>=7.4.0 pytest-cov>=4.1.0
-
-if [ $? -eq 0 ]; then
-    echo "✅ Pytest and pytest-cov installed successfully"
-else
-    echo "❌ Failed to install pytest/pytest-cov"
-fi
-
 # Install pylint
 echo "📦 Installing pylint..."
 pip install pylint>=3.0.0
@@ -44,13 +34,7 @@ echo ""
 echo "Verification:"
 echo "-------------"
 
-# Verify installations
-if command -v pytest &> /dev/null; then
-    echo "✅ pytest: $(pytest --version)"
-else
-    echo "❌ pytest: Not found"
-fi
-
+# Verify installation
 if command -v pylint &> /dev/null; then
     echo "✅ pylint: $(pylint --version | head -n 1)"
 else
@@ -58,5 +42,5 @@ else
 fi
 
 echo ""
-echo "Note: These tools are optional. The analyzer will work without them,"
-echo "but you'll get more comprehensive code quality metrics if they're installed."
+echo "Note: Pylint is optional. The analyzer will work without it,"
+echo "but you'll get more comprehensive code quality metrics if it's installed."

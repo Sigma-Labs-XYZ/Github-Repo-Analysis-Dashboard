@@ -1665,86 +1665,34 @@ def display_code_quality(db_manager: DatabaseManager, repo_id: int):
         fig_pylint.update_layout(height=300)
         st.plotly_chart(fig_pylint, use_container_width=True)
 
-    # Test Coverage Section
-    st.subheader("🧪 Test Coverage Analysis")
+    # Test Detection Section
+    st.subheader("🧪 Test Suite Detection")
 
     has_tests = metrics.get('has_tests', False)
+    test_files_count = metrics.get('test_files_count', 0)
 
     if has_tests:
-        coverage_percent = metrics.get('test_coverage_percent', 0.0)
-
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2 = st.columns(2)
 
         with col1:
-            # Coverage percentage with color indicator
-            if coverage_percent >= 80:
-                cov_color = "🟢"
-            elif coverage_percent >= 60:
-                cov_color = "🟡"
-            elif coverage_percent >= 40:
-                cov_color = "🟠"
-            else:
-                cov_color = "🔴"
-
             st.metric(
-                "Coverage",
-                f"{coverage_percent:.1f}%",
-                delta=f"{cov_color}"
+                "Test Files Detected",
+                f"{test_files_count:,}",
+                delta="🟢"
             )
 
         with col2:
             st.metric(
-                "Lines Covered",
-                f"{metrics.get('coverage_lines_covered', 0):,}"
+                "Test Suite",
+                "Present",
+                delta="✅"
             )
 
-        with col3:
-            st.metric(
-                "Lines Total",
-                f"{metrics.get('coverage_lines_total', 0):,}"
-            )
-
-        with col4:
-            st.metric(
-                "Lines Missing",
-                f"{metrics.get('coverage_lines_missing', 0):,}"
-            )
-
-        # Test status
-        tests_passed = metrics.get('tests_passed')
-        if tests_passed is not None:
-            if tests_passed:
-                st.success("✅ All tests passed")
-            else:
-                st.error("❌ Some tests failed")
-
-        # Coverage gauge
-        fig_coverage = go.Figure(go.Indicator(
-            mode="gauge+number",
-            value=coverage_percent,
-            domain={'x': [0, 1], 'y': [0, 1]},
-            title={'text': "Test Coverage"},
-            number={'suffix': "%"},
-            gauge={
-                'axis': {'range': [None, 100]},
-                'bar': {'color': "darkblue"},
-                'steps': [
-                    {'range': [0, 40], 'color': "lightcoral"},
-                    {'range': [40, 60], 'color': "lightyellow"},
-                    {'range': [60, 80], 'color': "lightgreen"},
-                    {'range': [80, 100], 'color': "green"}
-                ],
-                'threshold': {
-                    'line': {'color': "green", 'width': 4},
-                    'thickness': 0.75,
-                    'value': 80
-                }
-            }
-        ))
-        fig_coverage.update_layout(height=300)
-        st.plotly_chart(fig_coverage, use_container_width=True)
+        st.success(f"✅ Test suite detected with {test_files_count} test file(s)")
+        st.info("💡 Test files were detected based on naming conventions (test_*.py, *_test.py, or files in tests/ directories)")
     else:
         st.info("📝 No test suite detected in this repository")
+        st.caption("Test files are detected based on naming conventions: test_*.py, *_test.py, or files in tests/ directories")
 
     # Analysis timestamp
     st.caption(

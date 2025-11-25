@@ -135,6 +135,8 @@ Main Streamlit application with URL routing and three main pages:
   - **In-memory analysis**: Reads files directly from git objects (blobs) instead of file system
   - **Content analysis**: Language breakdown, file structure, line counts via git tree traversal
   - **Code quality**: Uses radon's Python API (`cc_visit`, `mi_visit`) on source strings
+  - **Pylint analysis**: Uses `epylint.py_run()` API to analyze source code strings in memory
+  - **Test detection**: Detects test files by naming convention (test_*.py, *_test.py, tests/ directories)
   - **Minimal disk usage**: Only clones to temp dir, then reads everything from git objects
   - **Automatic cleanup**: Removes temporary directories after analysis
   - Generates LLM-based quality insights and improvement suggestions

@@ -320,13 +320,9 @@ class CodeQualityMetric(Base):
     pylint_refactors = Column(Integer, default=0)
     pylint_total_issues = Column(Integer, default=0)
 
-    # Test coverage metrics
+    # Test detection
     has_tests = Column(Boolean, default=False)
-    test_coverage_percent = Column(Float, default=0.0)
-    coverage_lines_covered = Column(Integer, default=0)
-    coverage_lines_total = Column(Integer, default=0)
-    coverage_lines_missing = Column(Integer, default=0)
-    tests_passed = Column(Boolean, nullable=True)
+    test_files_count = Column(Integer, default=0)
 
     analyzed_at = Column(DateTime, default=datetime.utcnow)
 
