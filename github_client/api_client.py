@@ -23,8 +23,10 @@ class GitHubClient:
         """Parse GitHub repository URL to extract owner and repo name."""
         # Handle various GitHub URL formats
         patterns = [
-            r"github\.com/([^/]+)/([^/]+?)(?:\.git)?$",  # https://github.com/owner/repo or .git
-            r"github\.com/([^/]+)/([^/]+)",  # https://github.com/owner/repo/anything
+            # https://github.com/owner/repo or .git
+            r"github\.com/([^/]+)/([^/]+?)(?:\.git)?$",
+            # https://github.com/owner/repo/anything
+            r"github\.com/([^/]+)/([^/]+)",
         ]
 
         for pattern in patterns:
@@ -61,14 +63,16 @@ class GitHubClient:
                     f"3. The URL is spelled correctly"
                 )
             else:
-                raise ValueError(f"Could not access repository '{owner}/{repo_name}': {e}")
+                raise ValueError(
+                    f"Could not access repository '{owner}/{repo_name}': {e}")
 
     def get_commits(self, owner: str, repo_name: str, since: Optional[datetime] = None, progress_callback=None) -> List[Dict[str, Any]]:
         """Fetch all commits from a repository."""
         try:
             print(f"[GitHub API] Fetching commits from {owner}/{repo_name}...")
             repo = self.github.get_repo(f"{owner}/{repo_name}")
-            commits = repo.get_commits(since=since) if since else repo.get_commits()
+            commits = repo.get_commits(
+                since=since) if since else repo.get_commits()
 
             # Get total count if available
             try:
@@ -83,10 +87,8 @@ class GitHubClient:
             commit_count = 0
             for commit in commits:
                 commit_count += 1
-                if commit_count % 10 == 0:
-                    print(f"[GitHub API] Processed {commit_count} commits...")
-                    if progress_callback and total_count is not None:
-                        progress_callback(commit_count, total_count, "commits")
+                if progress_callback and total_count is not None:
+                    progress_callback(commit_count, total_count, "commits")
                 try:
                     # Get contributor information
                     author = commit.author
@@ -101,7 +103,8 @@ class GitHubClient:
 
                     # Count files changed (handle PaginatedList)
                     try:
-                        files_changed = commit.files.totalCount if hasattr(commit.files, 'totalCount') else len(list(commit.files))
+                        files_changed = commit.files.totalCount if hasattr(
+                            commit.files, 'totalCount') else len(list(commit.files))
                     except:
                         files_changed = stats.total if stats else 0
 
@@ -117,14 +120,17 @@ class GitHubClient:
 
                     commit_data.append(commit_info)
                 except Exception as e:
-                    print(f"[GitHub API] Error processing commit {commit.sha}: {e}")
+                    print(
+                        f"[GitHub API] Error processing commit {commit.sha}: {e}")
                     continue
 
             # Final progress update to ensure we reach 100%
             if progress_callback and len(commit_data) > 0:
-                progress_callback(len(commit_data), len(commit_data), "commits")
+                progress_callback(len(commit_data),
+                                  len(commit_data), "commits")
 
-            print(f"[GitHub API] ✓ Fetched {len(commit_data)} commits successfully")
+            print(
+                f"[GitHub API] ✓ Fetched {len(commit_data)} commits successfully")
             return commit_data
         except GithubException as e:
             print(f"[GitHub API] ✗ Failed to fetch commits: {e}")
@@ -133,7 +139,8 @@ class GitHubClient:
     def get_pull_requests(self, owner: str, repo_name: str, state: str = "all", progress_callback=None) -> List[Dict[str, Any]]:
         """Fetch all pull requests from a repository."""
         try:
-            print(f"[GitHub API] Fetching pull requests from {owner}/{repo_name}...")
+            print(
+                f"[GitHub API] Fetching pull requests from {owner}/{repo_name}...")
             repo = self.github.get_repo(f"{owner}/{repo_name}")
             prs = repo.get_pulls(state=state)
 
@@ -150,10 +157,11 @@ class GitHubClient:
             pr_count = 0
             for pr in prs:
                 pr_count += 1
-                if pr_count % 10 == 0:
-                    print(f"[GitHub API] Processed {pr_count} pull requests...")
-                    if progress_callback and total_count is not None:
-                        progress_callback(pr_count, total_count, "pull requests")
+                print(
+                    f"[GitHub API] Processed {pr_count} pull requests...")
+                if progress_callback and total_count is not None:
+                    progress_callback(
+                        pr_count, total_count, "pull requests")
                 try:
                     # Get contributor information
                     author = pr.user
@@ -184,7 +192,8 @@ class GitHubClient:
                                     seen_approvers.add(username)
                                     approvers.append(username)
                     except Exception as e:
-                        print(f"[GitHub API] Warning: Could not fetch reviews for PR #{pr.number}: {e}")
+                        print(
+                            f"[GitHub API] Warning: Could not fetch reviews for PR #{pr.number}: {e}")
 
                     # Get PR information
                     pr_info = {
@@ -205,14 +214,16 @@ class GitHubClient:
 
                     pr_data.append(pr_info)
                 except Exception as e:
-                    print(f"[GitHub API] Error processing PR #{pr.number}: {e}")
+                    print(
+                        f"[GitHub API] Error processing PR #{pr.number}: {e}")
                     continue
 
             # Final progress update to ensure we reach 100%
             if progress_callback and len(pr_data) > 0:
                 progress_callback(len(pr_data), len(pr_data), "pull requests")
 
-            print(f"[GitHub API] ✓ Fetched {len(pr_data)} pull requests successfully")
+            print(
+                f"[GitHub API] ✓ Fetched {len(pr_data)} pull requests successfully")
             return pr_data
         except GithubException as e:
             print(f"[GitHub API] ✗ Failed to fetch pull requests: {e}")
@@ -237,11 +248,10 @@ class GitHubClient:
                     continue
 
                 issue_count += 1
-                if issue_count % 10 == 0:
-                    print(f"[GitHub API] Processed {issue_count} issues...")
-                    if progress_callback:
-                        # Use current count for both current and total since we don't know final count yet
-                        progress_callback(issue_count, issue_count, "issues")
+                print(f"[GitHub API] Processed {issue_count} issues...")
+                if progress_callback:
+                    # Use current count for both current and total since we don't know final count yet
+                    progress_callback(issue_count, issue_count, "issues")
 
                 try:
                     # Get contributor information
@@ -253,7 +263,8 @@ class GitHubClient:
                     }
 
                     # Get assignees
-                    assignees = [assignee.login for assignee in issue.assignees]
+                    assignees = [
+                        assignee.login for assignee in issue.assignees]
 
                     # Get labels
                     labels = [label.name for label in issue.labels]
@@ -273,14 +284,16 @@ class GitHubClient:
 
                     issue_data.append(issue_info)
                 except Exception as e:
-                    print(f"[GitHub API] Error processing issue #{issue.number}: {e}")
+                    print(
+                        f"[GitHub API] Error processing issue #{issue.number}: {e}")
                     continue
 
             # Final progress update to ensure we reach 100%
             if progress_callback and len(issue_data) > 0:
                 progress_callback(len(issue_data), len(issue_data), "issues")
 
-            print(f"[GitHub API] ✓ Fetched {len(issue_data)} issues successfully")
+            print(
+                f"[GitHub API] ✓ Fetched {len(issue_data)} issues successfully")
             return issue_data
         except GithubException as e:
             print(f"[GitHub API] ✗ Failed to fetch issues: {e}")
@@ -371,7 +384,8 @@ class GitHubClient:
                                 "comment_type": "issue_comment"
                             })
                         except Exception as e:
-                            print(f"[GitHub API] Error processing issue comment: {e}")
+                            print(
+                                f"[GitHub API] Error processing issue comment: {e}")
                             continue
 
                     # Get review comments (inline code comments)
@@ -386,7 +400,8 @@ class GitHubClient:
                                 "comment_type": "review_comment"
                             })
                         except Exception as e:
-                            print(f"[GitHub API] Error processing review comment: {e}")
+                            print(
+                                f"[GitHub API] Error processing review comment: {e}")
                             continue
 
                     all_comments[pr_number] = comments
@@ -396,7 +411,8 @@ class GitHubClient:
                         progress_callback(idx, total, pr_number)
 
                 except Exception as e:
-                    print(f"[GitHub API] Error fetching comments for PR #{pr_number}: {e}")
+                    print(
+                        f"[GitHub API] Error fetching comments for PR #{pr_number}: {e}")
                     all_comments[pr_number] = []
 
                     # Still update progress even on error
@@ -440,7 +456,8 @@ class GitHubClient:
                                 "created_at": comment.created_at,
                             })
                         except Exception as e:
-                            print(f"[GitHub API] Error processing comment: {e}")
+                            print(
+                                f"[GitHub API] Error processing comment: {e}")
                             continue
 
                     all_comments[issue_number] = comments
@@ -450,7 +467,8 @@ class GitHubClient:
                         progress_callback(idx, total, issue_number)
 
                 except Exception as e:
-                    print(f"[GitHub API] Error fetching comments for issue #{issue_number}: {e}")
+                    print(
+                        f"[GitHub API] Error fetching comments for issue #{issue_number}: {e}")
                     all_comments[issue_number] = []
 
                     # Still update progress even on error

@@ -312,6 +312,22 @@ class CodeQualityMetric(Base):
     # Detailed breakdown
     file_quality_details = Column(Text)  # JSON string of per-file quality metrics
 
+    # Pylint metrics
+    pylint_score = Column(Float, default=0.0)  # Pylint score (0-10)
+    pylint_errors = Column(Integer, default=0)
+    pylint_warnings = Column(Integer, default=0)
+    pylint_conventions = Column(Integer, default=0)
+    pylint_refactors = Column(Integer, default=0)
+    pylint_total_issues = Column(Integer, default=0)
+
+    # Test coverage metrics
+    has_tests = Column(Boolean, default=False)
+    test_coverage_percent = Column(Float, default=0.0)
+    coverage_lines_covered = Column(Integer, default=0)
+    coverage_lines_total = Column(Integer, default=0)
+    coverage_lines_missing = Column(Integer, default=0)
+    tests_passed = Column(Boolean, nullable=True)
+
     analyzed_at = Column(DateTime, default=datetime.utcnow)
 
     def __repr__(self):

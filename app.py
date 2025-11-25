@@ -10,7 +10,8 @@ import config
 from database import DatabaseManager
 from github_client import GitHubClient
 from llm import OpenAIClient
-from analyzers import CommitAnalyzer, PRAnalyzer, IssueAnalyzer, CodeQualityAnalyzer, RepoContentAnalyzer
+from analyzers import CommitAnalyzer, PRAnalyzer, IssueAnalyzer
+from analyzers.repository_analyzer import RepositoryAnalyzer
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Page configuration
@@ -480,63 +481,58 @@ def analyze_repository(repo_url: str, github_token: str, openai_key: str):
             status.update(
                 label=f"✅ Fetched and saved {total_comments} comments", state="complete")
 
-        # Analyze repository content
-        with st.status("📁 Analyzing repository content...", expanded=True) as status:
-            content_analyzer = RepoContentAnalyzer()
-            content_results = content_analyzer.analyze_from_url(repo_url)
+        # Analyze repository (content + code quality combined)
+        with st.status("📁 Analyzing repository content and code quality...", expanded=True) as status:
+            repo_analyzer = RepositoryAnalyzer(llm_client)
 
-            if "error" not in content_results:
+            def progress_callback(message):
+                st.write(f"⏳ {message}")
+
+            analysis_results = repo_analyzer.analyze_repository(
+                repo_url, progress_callback=progress_callback)
+
+            if "error" not in analysis_results:
                 # Save content analysis to database
                 db_manager.save_repository_content({
                     "repo_id": repo_record.id,
-                    "total_files": content_results["total_files"],
-                    "total_lines": content_results["total_lines"],
-                    "language_breakdown": json.dumps(content_results["language_breakdown"]),
-                    "file_types": json.dumps(content_results["file_types"]),
-                    "largest_files": json.dumps(content_results["largest_files"]),
+                    "total_files": analysis_results.get("total_files", 0),
+                    "total_lines": analysis_results.get("total_lines", 0),
+                    "language_breakdown": json.dumps(analysis_results.get("language_breakdown", {})),
+                    "file_types": json.dumps(analysis_results.get("file_types", {})),
+                    "largest_files": json.dumps(analysis_results.get("largest_files", [])),
                 })
                 st.write(
-                    f"✅ Analyzed **{content_results['total_files']}** files with **{content_results['total_lines']:,}** lines of code")
-                status.update(
-                    label=f"✅ Repository content analyzed", state="complete")
-            else:
-                st.warning(
-                    f"⚠️ Could not analyze repository content: {content_results['error']}")
-                status.update(
-                    label="⚠️ Content analysis failed", state="error")
+                    f"✅ Analyzed **{analysis_results.get('total_files', 0)}** files with **{analysis_results.get('total_lines', 0):,}** lines of code")
 
-        # Analyze code quality
-        with st.status("🔍 Analyzing code quality...", expanded=True) as status:
-            code_quality_analyzer = CodeQualityAnalyzer(llm_client)
-
-            def quality_progress_callback(message):
-                st.write(f"⏳ {message}")
-
-            quality_results = code_quality_analyzer.analyze_repository(
-                repo_url, progress_callback=quality_progress_callback)
-
-            if "error" not in quality_results:
                 # Save code quality metrics to database
-                # Filter out non-model fields like 'status'
+                # Filter out content-related and non-model fields
                 metrics_to_save = {
-                    k: v for k, v in quality_results.items() if k != 'status'}
+                    k: v for k, v in analysis_results.items()
+                    if k not in ['status', 'total_files', 'total_lines', 'language_breakdown',
+                                 'file_types', 'largest_files', 'error']
+                }
                 db_manager.save_code_quality_metrics({
                     "repo_id": repo_record.id,
                     **metrics_to_save
                 })
-                st.write(
-                    f"✅ Analyzed **{quality_results['python_files_count']}** Python files")
-                st.write(
-                    f"📊 Average complexity: **{quality_results['avg_complexity']:.2f}** (Grade: {quality_results['complexity_grade']})")
-                st.write(
-                    f"🏆 Best practices score: **{quality_results['best_practices_score']:.1f}/10**")
+
+                if analysis_results.get('python_files_count', 0) > 0:
+                    st.write(
+                        f"✅ Analyzed **{analysis_results['python_files_count']}** Python files")
+                    st.write(
+                        f"📊 Average complexity: **{analysis_results['avg_complexity']:.2f}** (Grade: {analysis_results['complexity_grade']})")
+                    st.write(
+                        f"🏆 Best practices score: **{analysis_results['best_practices_score']:.1f}/10**")
+                else:
+                    st.write("ℹ️ No Python files found for quality analysis")
+
                 status.update(
-                    label=f"✅ Code quality analyzed", state="complete")
+                    label=f"✅ Repository analysis complete", state="complete")
             else:
                 st.warning(
-                    f"⚠️ Could not analyze code quality: {quality_results['error']}")
+                    f"⚠️ Could not analyze repository: {analysis_results['error']}")
                 status.update(
-                    label="⚠️ Code quality analysis skipped", state="error")
+                    label="⚠️ Repository analysis failed", state="error")
 
         # Update last analyzed timestamp
         db_manager.update_repository_last_analyzed(repo_record.repo_id)
@@ -551,6 +547,7 @@ def analyze_repository(repo_url: str, github_token: str, openai_key: str):
         return repo_record.id, repo_info
 
     except Exception as e:
+        print(e)
         st.error(f"❌ Error analyzing repository: {str(e)}")
         return None, None
 
@@ -676,7 +673,7 @@ def display_contributor_stats(db_manager: DatabaseManager, repo_id: int):
             "Lines -": "{:,.0f}",
             "Net Lines": "{:+,.0f}",
         }),
-        width='stretch',
+        use_container_width=True,
         hide_index=True,
     )
 
@@ -940,7 +937,7 @@ def display_repository_content(db_manager: DatabaseManager, repo_id: int):
         # Language statistics table
         st.dataframe(
             df_lang.style.format({"Lines": "{:,}", "Percentage": "{:.1f}%"}),
-            width='stretch',
+            use_container_width=True,
             hide_index=True,
         )
 
@@ -977,7 +974,7 @@ def display_repository_content(db_manager: DatabaseManager, repo_id: int):
 
         st.dataframe(
             df_largest.style.format({"Lines": "{:,}", "Size (bytes)": "{:,}"}),
-            width='stretch',
+            use_container_width=True,
             hide_index=True,
         )
 
@@ -1081,7 +1078,7 @@ def display_pull_requests(db_manager: DatabaseManager, repo_id: int, owner: str,
                     display_text="View PR"
                 ),
             },
-            width='stretch',
+            use_container_width=True,
             height=len(df)*38,
             hide_index=True
         )
@@ -1167,7 +1164,7 @@ def display_issues(db_manager: DatabaseManager, repo_id: int, owner: str, repo_n
                     display_text="View Issue"
                 ),
             },
-            width='stretch',
+            use_container_width=True,
             height=len(df)*38,
             hide_index=True
         )
@@ -1379,9 +1376,6 @@ def display_repository_dashboard(db_manager: DatabaseManager, repo_record):
         "📁 Repository Content"
     ])
 
-    # Display repository overview at the top
-    display_repository_overview(db_manager, repo_record.id)
-
     # Contributors Tab
     with tab1:
         display_contributor_stats(db_manager, repo_record.id)
@@ -1588,6 +1582,169 @@ def display_code_quality(db_manager: DatabaseManager, repo_id: int):
     )
     fig_grades.update_traces(textposition='outside')
     st.plotly_chart(fig_grades, use_container_width=True)
+
+    # Pylint Analysis Section
+    st.subheader("🔎 Pylint Code Analysis")
+    pylint_score = metrics.get('pylint_score', 0.0)
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        # Pylint score gauge
+        if pylint_score >= 8:
+            score_color = "🟢"
+        elif pylint_score >= 6:
+            score_color = "🟡"
+        elif pylint_score >= 4:
+            score_color = "🟠"
+        else:
+            score_color = "🔴"
+
+        st.metric(
+            "Pylint Score",
+            f"{pylint_score:.2f}/10",
+            delta=f"{score_color}"
+        )
+
+    with col2:
+        st.metric(
+            "Total Issues",
+            metrics.get('pylint_total_issues', 0)
+        )
+
+    with col3:
+        st.metric(
+            "Errors",
+            metrics.get('pylint_errors', 0)
+        )
+
+    # Pylint issues breakdown
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric(
+            "⚠️ Warnings",
+            metrics.get('pylint_warnings', 0)
+        )
+
+    with col2:
+        st.metric(
+            "📋 Conventions",
+            metrics.get('pylint_conventions', 0)
+        )
+
+    with col3:
+        st.metric(
+            "♻️ Refactors",
+            metrics.get('pylint_refactors', 0)
+        )
+
+    # Pylint score visualization
+    if pylint_score > 0:
+        fig_pylint = go.Figure(go.Indicator(
+            mode="gauge+number",
+            value=pylint_score,
+            domain={'x': [0, 1], 'y': [0, 1]},
+            title={'text': "Pylint Code Quality Score"},
+            gauge={
+                'axis': {'range': [None, 10]},
+                'bar': {'color': "darkblue"},
+                'steps': [
+                    {'range': [0, 4], 'color': "lightcoral"},
+                    {'range': [4, 6], 'color': "lightyellow"},
+                    {'range': [6, 8], 'color': "lightgreen"},
+                    {'range': [8, 10], 'color': "green"}
+                ],
+                'threshold': {
+                    'line': {'color': "green", 'width': 4},
+                    'thickness': 0.75,
+                    'value': 8
+                }
+            }
+        ))
+        fig_pylint.update_layout(height=300)
+        st.plotly_chart(fig_pylint, use_container_width=True)
+
+    # Test Coverage Section
+    st.subheader("🧪 Test Coverage Analysis")
+
+    has_tests = metrics.get('has_tests', False)
+
+    if has_tests:
+        coverage_percent = metrics.get('test_coverage_percent', 0.0)
+
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+            # Coverage percentage with color indicator
+            if coverage_percent >= 80:
+                cov_color = "🟢"
+            elif coverage_percent >= 60:
+                cov_color = "🟡"
+            elif coverage_percent >= 40:
+                cov_color = "🟠"
+            else:
+                cov_color = "🔴"
+
+            st.metric(
+                "Coverage",
+                f"{coverage_percent:.1f}%",
+                delta=f"{cov_color}"
+            )
+
+        with col2:
+            st.metric(
+                "Lines Covered",
+                f"{metrics.get('coverage_lines_covered', 0):,}"
+            )
+
+        with col3:
+            st.metric(
+                "Lines Total",
+                f"{metrics.get('coverage_lines_total', 0):,}"
+            )
+
+        with col4:
+            st.metric(
+                "Lines Missing",
+                f"{metrics.get('coverage_lines_missing', 0):,}"
+            )
+
+        # Test status
+        tests_passed = metrics.get('tests_passed')
+        if tests_passed is not None:
+            if tests_passed:
+                st.success("✅ All tests passed")
+            else:
+                st.error("❌ Some tests failed")
+
+        # Coverage gauge
+        fig_coverage = go.Figure(go.Indicator(
+            mode="gauge+number",
+            value=coverage_percent,
+            domain={'x': [0, 1], 'y': [0, 1]},
+            title={'text': "Test Coverage"},
+            number={'suffix': "%"},
+            gauge={
+                'axis': {'range': [None, 100]},
+                'bar': {'color': "darkblue"},
+                'steps': [
+                    {'range': [0, 40], 'color': "lightcoral"},
+                    {'range': [40, 60], 'color': "lightyellow"},
+                    {'range': [60, 80], 'color': "lightgreen"},
+                    {'range': [80, 100], 'color': "green"}
+                ],
+                'threshold': {
+                    'line': {'color': "green", 'width': 4},
+                    'thickness': 0.75,
+                    'value': 80
+                }
+            }
+        ))
+        fig_coverage.update_layout(height=300)
+        st.plotly_chart(fig_coverage, use_container_width=True)
+    else:
+        st.info("📝 No test suite detected in this repository")
 
     # Analysis timestamp
     st.caption(
