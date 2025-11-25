@@ -76,9 +76,8 @@ class CommitAnalyzer:
                     progress_callback(
                         completed, total, f"Analyzing commit {commit_data['sha'][:7]}")
 
-                if completed % 10 == 0:
-                    print(
-                        f"[Commit Analyzer] Analyzed {completed}/{total} commits...")
+                print(
+                    f"[Commit Analyzer] Analyzed {completed}/{total} commits...")
 
                 if not result["success"]:
                     print(
