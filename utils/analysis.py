@@ -355,10 +355,10 @@ def _fetch_and_save_comments(db_manager: DatabaseManager, github_client: GitHubC
     return total_comments
 
 
-def _analyze_repository_content(db_manager: DatabaseManager, repo_record, repo_url: str):
+def _analyze_repository_content(db_manager: DatabaseManager, repo_record, repo_url: str, openai_key: str):
     """Analyze repository content and code quality."""
     with st.status("📁 Analyzing repository content and code quality...", expanded=True) as status:
-        llm_client = OpenAIClient(db_manager.session.get_bind().url.database)
+        llm_client = OpenAIClient(openai_key)
         repo_analyzer = RepositoryAnalyzer(llm_client)
 
         def progress_callback(message):
@@ -428,15 +428,16 @@ def analyze_repository(repo_url: str, github_token: str, openai_key: str):
         commits, prs, issues = _fetch_repository_data(
             github_client, owner, repo_name)
 
-        _analyze_data(db_manager, repo_record,
-                      commits, prs, issues, llm_client)
+        # _analyze_data(db_manager, repo_record,
+        #               commits, prs, issues, llm_client)
 
         _fetch_and_save_comments(
             db_manager, github_client, repo_record, owner, repo_name, prs, issues)
 
-        _analyze_repository_content(db_manager, repo_record, repo_url)
+        # _analyze_repository_content(
+        #     db_manager, repo_record, repo_url, openai_key)
 
-        db_manager.update_repository_last_analyzed(repo_record.repo_id)
+        # db_manager.update_repository_last_analyzed(repo_record.repo_id)
 
         st.markdown("---")
         st.success(
