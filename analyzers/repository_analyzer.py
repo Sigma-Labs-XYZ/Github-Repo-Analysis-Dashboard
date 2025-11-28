@@ -561,7 +561,7 @@ class RepositoryAnalyzer:
             # Calculate score (pylint-style: 10 - penalty)
             # Weight: errors=1.0, warnings=0.5, conventions=0.25, refactors=0.25
             penalty = (error_count * 1.0) + (warning_count * 0.5) + \
-                     (convention_count * 0.25) + (refactor_count * 0.25)
+                (convention_count * 0.25) + (refactor_count * 0.25)
 
             # Normalize based on files analyzed to get a consistent score
             if files_analyzed > 0:
@@ -619,7 +619,8 @@ class RepositoryAnalyzer:
                     continue
 
                 filename = path.split('/')[-1]
-                directory = '/'.join(path.split('/')[:-1]) if '/' in path else ''
+                directory = '/'.join(path.split('/')
+                                     [:-1]) if '/' in path else ''
 
                 # Detect test files by naming convention
                 is_test_file = (
@@ -699,12 +700,11 @@ Format your response as JSON:
 }}"""
 
             response = self.llm.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-5-nano",
                 messages=[
                     {"role": "system", "content": "You are a code quality expert analyzing repository metrics."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.3
             )
 
             content = response.choices[0].message.content.strip()
